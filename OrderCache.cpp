@@ -8,7 +8,8 @@
 #include <unordered_set>
 #include <list>
 #include <vector>
-
+#include <climits>
+#include <cstdlib>
 
 
 class Cache
@@ -199,53 +200,44 @@ public:
     {
         if(mapSecurity.find(securityId) == mapSecurity.end())
         {
-            std::cout << "SecurityId is not in the cache" << std::endl;
             return 0;
         }
 
-        auto orderIds = mapSecurity[securityId];
-        // std::unordered_map<std::string, bool> buys = getBuyOrders(orderIds);
-
-        // Get all the orders that want to buy something
-        std::unordered_set<std::string> buyOrders = getBuyOrdersIds(orderIds);
-        // std::cout << buyOrders.size() << std::endl;
-        // for(auto buy : buyOrders)
-        // {
-        //     std::cout << buy << std::endl;
-        // }
-
-        // Get all the orders that want to seel something
-        std::vector<Order> sellOrders = getSellOrders(orderIds);
-        // std::cout << sellOrders.size() << std::endl;
-        // for(auto sell : sellOrders)
-        // {
-        //     std::cout << sell.orderId() << std::endl;
-        // }
-
         unsigned int matchSize = 0;
-        for (auto sellOrder : sellOrders)
+        auto orderIds = mapSecurity[securityId];
+        auto buyOrders = getBuyOrdersIds(orderIds);
+        auto sellOrders = getSellOrders(orderIds);
+
+        for (auto& sellOrder : sellOrders)
         {
-        //     // buysOnly =
-            getUnUsedBuys(sellOrder, buyOrders, matchSize);
-        //     // int remaining = sell.qty();
-        //     // for (auto buy: buys)
-        //     // {
-        //     //     if (buy.second)
-        //     //     {
-        //     //         continue;
-        //     //     }
-        //     //     Order* buyOrder = mapOrderId[buy.first]->order;
-        //     //     if ((sell.company() == buyOrder->company()) || remaining < buyOrder->qty())
-        //     //     {
-        //     //         continue;
-        //     //     }
-        //     //     remaining -= buyOrder->qty();
-        //     //     buys[buyOrder->orderId()] = true;
-        //     // }
+            getUnUsedBuysMap(sellOrder, buyOrders, matchSize);
         }
         return matchSize;
-        //return sumBuyOrdersOnly(buysOnly);
-        // return sumBuyOrders(buys);
+    }
+
+    void getUnUsedBuysMap(std::pair<std::string, unsigned int> sell,
+        std::unordered_map<std::string, unsigned int>& buysOrderIds, unsigned int& matchSize)
+    {
+        for(auto& buy : buysOrderIds)
+        {
+            if(sell.first == buy.first)
+            {
+                continue;
+            }
+
+            if (sell.second <= buy.second)
+            {
+                matchSize += sell.second;
+                buy.second -= sell.second;
+            }
+            else
+            {
+                matchSize += buy.second;
+                buy.second = 0;
+            }
+
+            // matchSize += std::abs((int)sell.second - (int)buy.second);
+        }
     }
 
     void getUnUsedBuys(Order& sell, std::unordered_set<std::string>& buysOrderIds, unsigned int& matchSize)
@@ -273,37 +265,9 @@ public:
             }
         }
         buysOrderIds = replyOrderIds;
-        // std::cout << "---------------" << std::endl;
     }
 
-    // unsigned int sumBuyOrders(std::unordered_map<std::string, bool>& buys)
-    // {
-    //     int total = 0;
-    //     for (auto buy: buys)
-    //     {
-    //             if (buy.second)
-    //             {
-    //                 total += mapOrderId[buy.first]->order->qty();
-    //             }
-    //     }
-    //     return total;
-    // }
-
-    // std::unordered_map<std::string, bool> getBuyOrders(const std::unordered_set<std::string>& orderIds)
-    // {
-
-    //     std::unordered_map<std::string, bool> buys;
-    //     for(auto orderId:orderIds)
-    //     {
-    //         Order* order = &mapOrderId[orderId]->order;
-    //         if (order->side() == "Buy") {
-    //             buys[orderId] = false;
-    //         }
-    //     }
-    //     return buys;
-    // }
-
-    std::unordered_set<std::string> getBuyOrdersIds(const std::unordered_set<std::string>& orderIds)
+    std::unordered_map<std::string, unsigned int> getBuyOrdersIds(const std::unordered_set<std::string>& orderIds)
     {
         std::unordered_set<std::string> buys;
         std::unordered_map<std::string, unsigned int> buys_map;
@@ -339,10 +303,11 @@ public:
         {
             std::cout << acc.first + ": " << acc.second << std::endl;
         }
-        return buys;
+        // return buys;
+        return buys_map;
     }
 
-    std::vector<Order> getSellOrders(const std::unordered_set<std::string>& orderIds)
+    std::unordered_map<std::string, unsigned int> getSellOrders(const std::unordered_set<std::string>& orderIds)
     {
         // I get here the complete order, because I will compare it later
         std::vector<Order> sells;
@@ -356,7 +321,6 @@ public:
                 //Security and the quantity
                 if (sells_map.find(order->company()) != sells_map.end())
                 {
-                    // std::cout << "Company is in the map: " << order->company() << std::endl;
                     auto& accumulatedSell = sells_map[order->company()];
                     accumulatedSell += order->qty();
                 }
@@ -375,34 +339,15 @@ public:
         {
             std::cout << acc.first + ": " << acc.second << std::endl;
         }
-        return sells;
+        // return sells;
+        return sells_map;
     }
 };
 
 int main()
 {
-    // For now it is an order object, but I would need to make the double linked list here.
-    // I could add the required elements inside that class so it might be easier.
     std::cout << "Starting" << std::endl;
-
-    Order order_1 = Order("OrdId1", "SecId1", "Buy", 1000, "User1", "CompanyA");
-    Order order_2 = Order("OrdId2", "SecId2", "Sell", 3000, "User2", "CompanyB");
-    Order order_3 = Order("OrdId3", "SecId1", "Sell", 500, "User3", "CompanyA");
-    Order order_4 = Order("OrdId4", "SecId2", "Buy", 600, "User4", "CompanyC");
-    Order order_5 = Order("OrdId5", "SecId2", "Buy", 100, "User5", "CompanyB");
-    Order order_6 = Order("OrdId6", "SecId3", "Buy", 1000, "User6", "CompanyD");
-    Order order_7 = Order("OrdId7", "SecId2", "Buy", 2000, "User7", "CompanyE");
-    Order order_8 = Order("OrdId8", "SecId2", "Sell", 5000, "User8", "CompanyE");
-
     Cache my_cache{};
-    my_cache.addOrder(order_1);
-    my_cache.addOrder(order_2);
-    my_cache.addOrder(order_3);
-    my_cache.addOrder(order_4);
-    my_cache.addOrder(order_5);
-    my_cache.addOrder(order_6);
-    my_cache.addOrder(order_7);
-    my_cache.addOrder(order_8);
 
     // Order order_1 = Order("OrdId1", "SecId1", "Buy", 1000, "User1", "CompanyA");
     // Order order_2 = Order("OrdId2", "SecId2", "Sell", 3000, "User2", "CompanyB");
@@ -413,36 +358,93 @@ int main()
     // Order order_7 = Order("OrdId7", "SecId2", "Buy", 2000, "User7", "CompanyE");
     // Order order_8 = Order("OrdId8", "SecId2", "Sell", 5000, "User8", "CompanyE");
 
+    // my_cache.addOrder(order_1);
+    // my_cache.addOrder(order_2);
+    // my_cache.addOrder(order_3);
+    // my_cache.addOrder(order_4);
+    // my_cache.addOrder(order_5);
+    // my_cache.addOrder(order_6);
+    // my_cache.addOrder(order_7);
+    // my_cache.addOrder(order_8);
 
+    // Order order_1 = Order("OrdId1", "SecId1", "Sell", 100, "User10", "Company2");
+    // Order order_2 = Order("OrdId2", "SecId3", "Sell", 200, "User8", "Company2");
+    // Order order_3 = Order("OrdId3", "SecId1", "Buy", 300, "User13", "Company2");
+    // Order order_4 = Order("OrdId4", "SecId2", "Sell", 400, "User12", "Company2");
+    // Order order_5 = Order("OrdId5", "SecId3", "Sell", 500, "User7", "Company2");
+    // Order order_6 = Order("OrdId6", "SecId3", "Buy", 600, "User3", "Company1");
+    // Order order_7 = Order("OrdId7", "SecId1", "Sell", 700, "User10", "Company2");
+    // Order order_8 = Order("OrdId8", "SecId1", "Sell", 800, "User2", "Company1");
+    // Order order_9 = Order("OrdId9", "SecId2", "Buy", 900, "User6", "Company2");
+    // Order order_10 = Order("OrdId10", "SecId2", "Sell", 1000, "User5", "Company1");
+    // Order order_11 = Order("OrdId11", "SecId1", "Sell", 1100, "User13", "Company2");
+    // Order order_12 = Order("OrdId12", "SecId2", "Buy", 1200, "User9", "Company2");
+    // Order order_13 = Order("OrdId13", "SecId1", "Sell", 1300, "User1", "Company2");
+
+    // my_cache.addOrder(order_1);
+    // my_cache.addOrder(order_2);
+    // my_cache.addOrder(order_3);
+    // my_cache.addOrder(order_4);
+    // my_cache.addOrder(order_5);
+    // my_cache.addOrder(order_6);
+    // my_cache.addOrder(order_7);
+    // my_cache.addOrder(order_8);
+    // my_cache.addOrder(order_9);
+    // my_cache.addOrder(order_10);
+    // my_cache.addOrder(order_11);
+    // my_cache.addOrder(order_12);
+    // my_cache.addOrder(order_13);
+
+    Order order_1 = Order("OrdId1", "SecId3", "Sell", 100, "User1", "Company1");
+    Order order_2 = Order("OrdId2", "SecId3", "Sell", 200, "User3", "Company2");
+    Order order_3 = Order("OrdId3", "SecId1", "Buy", 300, "User2", "Company1");
+    Order order_4 = Order("OrdId4", "SecId3", "Sell", 400, "User5", "Company2");
+    Order order_5 = Order("OrdId5", "SecId2", "Sell", 500, "User2", "Company1");
+    Order order_6 = Order("OrdId6", "SecId2", "Buy", 600, "User3", "Company2");
+    Order order_7 = Order("OrdId7", "SecId2", "Sell", 700, "User1", "Company1");
+    Order order_8 = Order("OrdId8", "SecId1", "Sell", 800, "User2", "Company1");
+    Order order_9 = Order("OrdId9", "SecId1", "Buy", 900, "User5", "Company2");
+    Order order_10 = Order("OrdId10", "SecId1", "Sell", 1000, "User1", "Company1");
+    Order order_11 = Order("OrdId11", "SecId2", "Sell", 1100, "User6", "Company2");
+
+    my_cache.addOrder(order_1);
+    my_cache.addOrder(order_2);
+    my_cache.addOrder(order_3);
+    my_cache.addOrder(order_4);
+    my_cache.addOrder(order_5);
+    my_cache.addOrder(order_6);
+    my_cache.addOrder(order_7);
+    my_cache.addOrder(order_8);
+    my_cache.addOrder(order_9);
+    my_cache.addOrder(order_10);
+    my_cache.addOrder(order_11);
+
+
+    // Get all orderds
     // auto res = my_cache.getAllOrders();
-
-    // // std::cout << res.size() << std::endl;
-
     // for(Order order : res)
     // {
     //     std::cout << order.orderId() << std::endl;
     // }
 
-    // my_cache.printOrders();
     // my_cache.printUserMap();
-    my_cache.printSecurityMap();
-    std::cout << "---------------" << std::endl;
-    std::cout << my_cache.getMatchingSizeForSecurity(order_2.securityId()) << std::endl;
-    // // my_cache.cancelOrder(order_4.orderId());
+    // my_cache.printSecurityMap();
+    // std::cout << my_cache.getMatchingSizeForSecurity(order_1.securityId()) << std::endl;
 
+    // Cancel order
     // std::cout << "---------------" << std::endl;
-    // // my_cache.printUserMap();
-    // // my_cache.printOrders();
+    // my_cache.cancelOrder(order_4.orderId());
+    // my_cache.printOrders();
 
+    // Cancel orders for user
     // std::cout << "---------------" << std::endl;
     // my_cache.cancelOrdersForUser(order_2.user());
-
-    // std::cout << "---------------" << std::endl;
     // my_cache.printOrders();
     // my_cache.printUserMap();
 
+    // Cancel orders for securityId with MinimumQty
+    // std::cout << "---------------" << std::endl;
     // my_cache.cancelOrdersForSecIdWithMinimumQty(order_2.securityId(), 100);
-    // my_cache.printUserMap();
     // my_cache.printOrders();
     // my_cache.printSecurityMap();
 
