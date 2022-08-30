@@ -1,66 +1,59 @@
 #pragma once
 
-#include <string>
+#include "Node.h"
+#include "OrderCacheInterface.h"
+
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
-class Order
+
+class OrderCache : public OrderCacheInterface
 {
-  
- public:
 
-  // do not alter signature of this constructor
- Order(const std::string& ordId, const std::string& secId, const std::string& side, const unsigned int qty, const std::string& user,
-       const std::string& company)
-   : m_orderId(ordId), m_securityId(secId), m_side(side), m_qty(qty), m_user(user), m_company(company) { }
-
-  // do not alter these accessor methods 
-  std::string orderId() const    { return m_orderId; }
-  std::string securityId() const { return m_securityId; }
-  std::string side() const       { return m_side; }
-  std::string user() const       { return m_user; }
-  std::string company() const    { return m_company; }
-  unsigned int qty() const       { return m_qty; }
-  
- private:
-  
-  // use the below to hold the order data
-  // do not remove the these member variables  
-  std::string m_orderId;     // unique order id
-  std::string m_securityId;  // security identifier
-  std::string m_side;        // side of the order, eg Buy or Sell
-  unsigned int m_qty;        // qty for this order
-  std::string m_user;        // user name who owns this order
-  std::string m_company;     // company for user
-    
-};
-
-
-// Provide an implementation for the OrderCacheInterface interface class.
-// Your implementation class should hold all relevant data structures you think
-// are needed. 
-class OrderCacheInterface
-{
-    
 public:
-  
-  // implememnt the 6 methods below, do not alter signatures
-
   // add order to the cache
-  virtual void addOrder(Order order) = 0; 
+  void addOrder(Order order) override; // Object
 
   // remove order with this unique order id from the cache
-  virtual void cancelOrder(const std::string& orderId) = 0; 
+  void cancelOrder(const std::string& orderId) override; // Order ID
 
   // remove all orders in the cache for this user
-  virtual void cancelOrdersForUser(const std::string& user) = 0; 
+  void cancelOrdersForUser(const std::string& user) override; // User
 
   // remove all orders in the cache for this security with qty >= minQty
-  virtual void cancelOrdersForSecIdWithMinimumQty(const std::string& securityId, unsigned int minQty) = 0; 
+  void cancelOrdersForSecIdWithMinimumQty(const std::string& securityId, unsigned int minQty) override; // SecurityID
 
   // return the total qty that can match for the security id
-  virtual unsigned int getMatchingSizeForSecurity(const std::string& securityId) = 0; 
+  unsigned int getMatchingSizeForSecurity(const std::string& securityId) override;
 
   // return all orders in cache in a vector
-  virtual std::vector<Order> getAllOrders() const = 0;  
+  std::vector<Order> getAllOrders() const override;
 
+private:
+  // add order to the security map
+  void addOrderToSecurityMap(const Order& order);
+
+  // add order to the user map
+  void addOrderToUserMap(const Order& order);
+
+  // get all buy ordersIds from the orders map
+  std::unordered_map<std::string, unsigned int> getBuyOrdersIds(const std::unordered_set<std::string>& orderIds);
+
+  // get all sell orders objects from the orders map
+  std::unordered_map<std::string, unsigned int> getSellOrders(const std::unordered_set<std::string>& orderIds);
+
+  // match available sells with buy requests
+  void matchBuysAndSells(std::pair<std::string, unsigned int> sell, std::unordered_map<std::string, unsigned int>& buysOrderIds, unsigned int& matchSize);
+
+private:
+  Node* m_head;
+  Node* m_tail;
+
+  // HashMap for storing the Orders
+  std::unordered_map<std::string, Node*> m_mapOrderId;
+  // HashMap for storing the Users and its corresponding Order
+  std::unordered_map<std::string, std::unordered_set<std::string>> m_mapUser;
+  // HashMap for storing the SecurirtyIds and its corresponding Order
+  std::unordered_map<std::string, std::unordered_set<std::string>> m_mapSecurity;
 };
