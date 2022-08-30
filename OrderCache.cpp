@@ -34,8 +34,22 @@ void OrderCache::cancelOrder(const std::string& orderId)
   }
 
   Node* node = m_mapOrderId[orderId];
-  Node* prev = node->prev;
 
+  if (node == m_head && node == m_tail)
+  {
+    m_head = nullptr;
+    m_tail = nullptr;
+  }
+  else if (node->prev == nullptr)
+  {
+    m_head = node->next;
+  }
+  else if(node->next == nullptr && node->prev == m_head)
+  {
+    m_tail = node->prev;
+  }
+
+  Node* prev = node->prev;
   if (prev != nullptr)
   {
     prev->next = node->next;
